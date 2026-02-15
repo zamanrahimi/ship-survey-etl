@@ -1,5 +1,5 @@
 # Deploy dataset from data/ to ADLS container ship-survey-csv
-# Requires: GitHub repo secrets AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, AZURE_CLIENT_SECRET
+# Requires: GitHub repo secrets AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET (subscription not needed for blob upload)
 
 name: Deploy data to ADLS
 
@@ -25,10 +25,9 @@ jobs:
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          for v in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID AZURE_CLIENT_SECRET; do
+          for v in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_CLIENT_SECRET; do
             if [ -z "${!v}" ]; then
               echo "::error::Secret '$v' is empty or not set. Add it in Settings → Secrets and variables → Actions. If this run is from a fork, secrets are not available—run from the main repo."
               exit 1
@@ -39,7 +38,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v2
         with:
-          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
           allow-no-subscriptions: true
 
       - name: Upload data to ADLS (ship-survey-csv)
