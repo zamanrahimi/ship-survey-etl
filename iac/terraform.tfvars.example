@@ -8,6 +8,9 @@ data_lake_container_name    = "ship-survey-csv"
 create_processed_container  = true
 processed_container_name    = "ship-survey-processed"
 
+# Optional: GitHub Actions service principal (appId) – Terraform will assign Storage Blob Data Contributor so the workflow can upload to ship-survey-csv
+# github_actions_sp_client_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
 tags = {
   project = "ship-survey-etl"
   env     = "dev"

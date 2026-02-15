@@ -36,6 +36,15 @@ Terraform in this folder provisions **Azure Data Lake Storage Gen2** for the Shi
 - **Storage account** `shipsurveyetl` – ADLS Gen2 (hierarchical namespace enabled)
 - **Container** `ship-survey-csv` – target for raw CSV deployment
 - **Container** `ship-survey-processed` (optional) – for processed/curated data (e.g. Parquet)
+- **Role assignment** (optional) – if `github_actions_sp_client_id` is set, Terraform assigns **Storage Blob Data Contributor** on the storage account to that service principal so the GitHub Actions workflow can upload blobs
+
+### Grant GitHub Actions permission via Terraform
+
+To have Terraform assign **Storage Blob Data Contributor** to the service principal used by the deploy-data-to-adls workflow:
+
+1. Create the service principal (if you haven’t): use the same `az ad sp create-for-rbac` or app registration you use for GitHub secrets.
+2. In `terraform.tfvars`, set **`github_actions_sp_client_id`** to that service principal’s **Application (client) ID** (same value as the GitHub secret **AZURE_CLIENT_ID**).
+3. Run `terraform plan` then `terraform apply`. Terraform will create the role assignment so the workflow can upload to `ship-survey-csv` without a manual `az role assignment create`.
 
 ## Deploying CSV later
 

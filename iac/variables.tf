@@ -51,3 +51,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "github_actions_sp_client_id" {
+  description = "Application (client) ID of the service principal used by GitHub Actions to deploy data. If set, Terraform assigns 'Storage Blob Data Contributor' on the storage account so the workflow can upload to ship-survey-csv."
+  type        = string
+  default     = ""
+}

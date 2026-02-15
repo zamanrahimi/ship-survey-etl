@@ -49,3 +49,16 @@ resource "azurerm_storage_data_lake_gen2_filesystem" "processed" {
   name               = var.processed_container_name
   storage_account_id = azurerm_storage_account.adls.id
 }
+
+# Grant GitHub Actions service principal permission to upload blobs to ADLS
+data "azuread_service_principal" "github_actions" {
+  count     = var.github_actions_sp_client_id != "" ? 1 : 0
+  client_id = var.github_actions_sp_client_id
+}
+
+resource "azurerm_role_assignment" "adls_blob_contributor" {
+  count                = var.github_actions_sp_client_id != "" ? 1 : 0
+  scope                = azurerm_storage_account.adls.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = data.azuread_service_principal.github_actions[0].object_id
+}
