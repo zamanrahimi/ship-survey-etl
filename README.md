@@ -24,7 +24,8 @@ ship-survey-etl/
 ## GitHub & CI/CD
 
 - Repo: [ship-survey-etl](https://github.com/zamanrahimi/ship-survey-etl)
-- GitHub Actions: add workflows under `.github/workflows/` for build, test, and Synapse deployment.
+- **Deploy data to ADLS:** workflow `.github/workflows/deploy-data-to-adls.yml` uploads `data/` to the **ship-survey-csv** container. See [.github/workflows/README.md](.github/workflows/README.md) for one-time setup (Azure service principal + `AZURE_CREDENTIALS` secret).
+- Other workflows: add under `.github/workflows/` for build, test, and Synapse deployment.
 
 ## Synapse
 
