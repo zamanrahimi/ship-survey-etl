@@ -12,6 +12,10 @@ storage_account_name   = "shipsurveyetl"   # globally unique, 3–24 chars, lowe
 # Optional: GitHub Actions service principal (appId) – Terraform assigns Storage Blob Data Contributor so the workflow can upload to ship-bronze-data
 # github_actions_sp_client_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
+# Optional: Azure AD object IDs of users/groups who can open containers in the Azure Portal (Storage Blob Data Reader)
+# Get your object ID: az ad signed-in-user show --query id -o tsv
+# storage_data_reader_principal_ids = ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
+
 tags = {
   project = "ship-survey-etl"
   env     = "dev"

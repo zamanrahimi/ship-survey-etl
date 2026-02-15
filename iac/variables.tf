@@ -57,3 +57,9 @@ variable "github_actions_sp_client_id" {
   type        = string
   default     = ""
 }
+
+variable "storage_data_reader_principal_ids" {
+  description = "List of Azure AD object IDs (users or groups) to grant 'Storage Blob Data Reader' on the storage account so they can open containers in the Azure Portal."
+  type        = list(string)
+  default     = []
+}

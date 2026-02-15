@@ -38,6 +38,7 @@ Terraform in this folder provisions **Azure Data Lake Storage Gen2** for the Shi
 - **Container** `ship-silver-data` – silver (cleaned)
 - **Container** `ship-golden-data` – golden (curated)
 - **Role assignment** (optional) – if `github_actions_sp_client_id` is set, Terraform assigns **Storage Blob Data Contributor** on the storage account so the GitHub Actions workflow can upload to **ship-bronze-data**
+- **Role assignment** (optional) – if `storage_data_reader_principal_ids` is set, Terraform assigns **Storage Blob Data Reader** to those users/groups so they can open containers in the Azure Portal
 
 ### Grant GitHub Actions permission via Terraform (so it works every time)
 
@@ -76,6 +77,20 @@ terraform import 'azurerm_role_assignment.adls_blob_contributor[0]' "$ROLE_ID"
 ```
 
 Then run `terraform plan` — it should show no changes (Terraform now owns the assignment). Future `terraform apply` will keep it in place; in a new environment, Terraform will create it.
+
+### Grant yourself (or others) access to open containers in the Azure Portal
+
+To fix "Server failed to authenticate the request" when opening containers in the portal, grant **Storage Blob Data Reader** via Terraform:
+
+1. **Get your Azure AD object ID** (user signed in to the portal):
+   ```bash
+   az ad signed-in-user show --query id -o tsv
+   ```
+2. In `terraform.tfvars`, set **`storage_data_reader_principal_ids`** to a list containing that ID (and any other users/groups):
+   ```hcl
+   storage_data_reader_principal_ids = ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
+   ```
+3. Run `terraform apply`. Terraform will assign **Storage Blob Data Reader** on the storage account to those principals so they can open containers in the portal.
 
 **3. From now on**
 

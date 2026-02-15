@@ -65,3 +65,11 @@ resource "azurerm_role_assignment" "adls_blob_contributor" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = data.azuread_service_principal.github_actions[0].object_id
 }
+
+# Grant users/groups permission to view storage in Azure Portal (Storage Blob Data Reader)
+resource "azurerm_role_assignment" "storage_data_reader" {
+  for_each             = toset(var.storage_data_reader_principal_ids)
+  scope                = azurerm_storage_account.adls.id
+  role_definition_name = "Storage Blob Data Reader"
+  principal_id         = each.value
+}
