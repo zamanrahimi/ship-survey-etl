@@ -1,0 +1,51 @@
+# Ship Survey ETL – Terraform: Azure Data Lake Storage Gen2 for CSV deployment
+
+terraform {
+  required_version = ">= 1.0"
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 3.0"
+    }
+    azuread = {
+      source  = "hashicorp/azuread"
+      version = "~> 2.0"
+    }
+  }
+}
+
+provider "azurerm" {
+  features {}
+}
+
+# Resource group for ADLS and related resources
+resource "azurerm_resource_group" "rg" {
+  name     = var.resource_group_name
+  location = var.location
+  tags     = var.tags
+}
+
+# Storage account with Data Lake Storage Gen2 (hierarchical namespace)
+resource "azurerm_storage_account" "adls" {
+  name                     = var.storage_account_name
+  resource_group_name      = azurerm_resource_group.rg.name
+  location                 = azurerm_resource_group.rg.location
+  account_tier             = var.storage_account_tier
+  account_replication_type = var.storage_account_replication_type
+  account_kind             = "StorageV2"
+  is_hns_enabled           = true # ADLS Gen2
+  tags                     = var.tags
+}
+
+# Container (filesystem) for survey CSV data
+resource "azurerm_storage_data_lake_gen2_filesystem" "csv" {
+  name               = var.data_lake_container_name
+  storage_account_id = azurerm_storage_account.adls.id
+}
+
+# Optional: container for processed/curated output (e.g. Parquet)
+resource "azurerm_storage_data_lake_gen2_filesystem" "processed" {
+  count              = var.create_processed_container ? 1 : 0
+  name               = var.processed_container_name
+  storage_account_id = azurerm_storage_account.adls.id
+}

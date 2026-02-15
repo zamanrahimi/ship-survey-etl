@@ -1,0 +1,14 @@
+# Copy to terraform.tfvars and set values. Do not commit terraform.tfvars if it contains secrets.
+# All Azure resource names use "ship" prefix.
+
+location               = "East US"
+resource_group_name    = "ship-rg-survey-etl"
+storage_account_name   = "shipsurveyetl"   # globally unique, 3–24 chars, lowercase alphanumeric (no hyphens)
+data_lake_container_name    = "ship-survey-csv"
+create_processed_container  = true
+processed_container_name    = "ship-survey-processed"
+
+tags = {
+  project = "ship-survey-etl"
+  env     = "dev"
+}

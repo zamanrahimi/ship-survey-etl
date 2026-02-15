@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+
+# Terraform (iac/)
+iac/.terraform/
+iac/*.tfstate
+iac/*.tfstate.*
+iac/.terraform.lock.hcl
+iac/*.tfvars
+!iac/terraform.tfvars.example

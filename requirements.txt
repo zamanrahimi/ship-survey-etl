@@ -1,0 +1,17 @@
+# Ship Survey ETL – Python dependencies
+# PySpark is typically provided by Synapse runtime; these are for local dev / tests
+
+# Distributed data processing: Spark DataFrame API and SQL for ETL jobs (matches Synapse Spark).
+pyspark>=3.3.0
+
+# In-memory tabular data: cleaning, transforming, and analyzing survey data locally or in notebooks.
+pandas>=1.5.0
+
+# Columnar format and fast I/O: read/write Parquet/Arrow, interoperate with Spark and pandas.
+pyarrow>=12.0.0
+
+# Jupyter server and protocol: run interactive notebooks in the browser.
+jupyter>=1.0.0
+
+# Notebook UI and kernel: edit and run PySpark/pandas code in .ipynb files (e.g. in notebooks/).
+notebook>=6.5.0
