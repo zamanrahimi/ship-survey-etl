@@ -37,16 +37,19 @@ resource "azurerm_storage_account" "adls" {
   tags                     = var.tags
 }
 
-# Container (filesystem) for survey CSV data
-resource "azurerm_storage_data_lake_gen2_filesystem" "csv" {
-  name               = var.data_lake_container_name
+# Medallion: bronze (raw), silver (cleaned), golden (curated)
+resource "azurerm_storage_data_lake_gen2_filesystem" "bronze" {
+  name               = var.bronze_container_name
   storage_account_id = azurerm_storage_account.adls.id
 }
 
-# Optional: container for processed/curated output (e.g. Parquet)
-resource "azurerm_storage_data_lake_gen2_filesystem" "processed" {
-  count              = var.create_processed_container ? 1 : 0
-  name               = var.processed_container_name
+resource "azurerm_storage_data_lake_gen2_filesystem" "silver" {
+  name               = var.silver_container_name
+  storage_account_id = azurerm_storage_account.adls.id
+}
+
+resource "azurerm_storage_data_lake_gen2_filesystem" "golden" {
+  name               = var.golden_container_name
   storage_account_id = azurerm_storage_account.adls.id
 }
 

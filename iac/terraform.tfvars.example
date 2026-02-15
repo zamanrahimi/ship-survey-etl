@@ -4,11 +4,12 @@
 location               = "East US"
 resource_group_name    = "ship-rg-survey-etl"
 storage_account_name   = "shipsurveyetl"   # globally unique, 3–24 chars, lowercase alphanumeric (no hyphens)
-data_lake_container_name    = "ship-survey-csv"
-create_processed_container  = true
-processed_container_name    = "ship-survey-processed"
+# Medallion containers (defaults: ship-bronze-data, ship-silver-data, ship-golden-data)
+# bronze_container_name = "ship-bronze-data"
+# silver_container_name = "ship-silver-data"
+# golden_container_name = "ship-golden-data"
 
-# Optional: GitHub Actions service principal (appId) – Terraform will assign Storage Blob Data Contributor so the workflow can upload to ship-survey-csv
+# Optional: GitHub Actions service principal (appId) – Terraform assigns Storage Blob Data Contributor so the workflow can upload to ship-bronze-data
 # github_actions_sp_client_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 tags = {

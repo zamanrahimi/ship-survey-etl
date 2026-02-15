@@ -28,30 +28,86 @@ Terraform in this folder provisions **Azure Data Lake Storage Gen2** for the Shi
    ```
 
 4. **Use outputs**  
-   After apply, use the printed outputs (e.g. `csv_container_path`) in deployment scripts or Synapse to upload CSVs from `data/` to ADLS.
+   After apply, use the printed outputs (e.g. `bronze_container_path`, `silver_container_path`, `golden_container_path`) in deployment scripts or Synapse.
 
 ## Resources created (all names use `ship` prefix)
 
 - **Resource group** `ship-rg-survey-etl` – holds all resources
 - **Storage account** `shipsurveyetl` – ADLS Gen2 (hierarchical namespace enabled)
-- **Container** `ship-survey-csv` – target for raw CSV deployment
-- **Container** `ship-survey-processed` (optional) – for processed/curated data (e.g. Parquet)
-- **Role assignment** (optional) – if `github_actions_sp_client_id` is set, Terraform assigns **Storage Blob Data Contributor** on the storage account to that service principal so the GitHub Actions workflow can upload blobs
+- **Container** `ship-bronze-data` – bronze (raw/landing) – target for GitHub Actions CSV deployment
+- **Container** `ship-silver-data` – silver (cleaned)
+- **Container** `ship-golden-data` – golden (curated)
+- **Role assignment** (optional) – if `github_actions_sp_client_id` is set, Terraform assigns **Storage Blob Data Contributor** on the storage account so the GitHub Actions workflow can upload to **ship-bronze-data**
 
-### Grant GitHub Actions permission via Terraform
+### Grant GitHub Actions permission via Terraform (so it works every time)
 
-To have Terraform assign **Storage Blob Data Contributor** to the service principal used by the deploy-data-to-adls workflow:
+Terraform can manage the **Storage Blob Data Contributor** role assignment so the GitHub Actions workflow can upload to **ship-bronze-data** without a manual `az role assignment create`.
 
-1. Create the service principal (if you haven’t): use the same `az ad sp create-for-rbac` or app registration you use for GitHub secrets.
-2. In `terraform.tfvars`, set **`github_actions_sp_client_id`** to that service principal’s **Application (client) ID** (same value as the GitHub secret **AZURE_CLIENT_ID**).
-3. Run `terraform plan` then `terraform apply`. Terraform will create the role assignment so the workflow can upload to `ship-survey-csv` without a manual `az role assignment create`.
+**1. Set the variable**
 
-## Deploying CSV later
+In `terraform.tfvars`, set **`github_actions_sp_client_id`** to the same value as your GitHub secret **AZURE_CLIENT_ID** (the service principal’s Application (client) ID):
 
-Upload files to the CSV container using Azure CLI, Synapse pipelines, or the `scripts/` in this repo. Example with Azure CLI (after `az login`):
-
-```bash
-az storage blob upload-batch -d ship-survey-csv -s ../data --account-name shipsurveyetl --auth-mode login
+```hcl
+github_actions_sp_client_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 ```
 
-Use the Terraform output `csv_container_path` (ABFS URL) in Synapse or Spark to read/write data.
+**2a. If you have NOT created the role assignment manually yet**
+
+```bash
+terraform plan
+terraform apply
+```
+
+Terraform will create the role assignment.
+
+**2b. If you ALREADY created it via `az role assignment create`**
+
+Import the existing role assignment so Terraform manages it from now on (no duplicate, no destroy/recreate):
+
+```bash
+# Get the role assignment ID (replace SUB_ID and AZURE_CLIENT_ID)
+ROLE_ID=$(az role assignment list \
+  --scope "/subscriptions/<SUB_ID>/resourceGroups/ship-rg-survey-etl/providers/Microsoft.Storage/storageAccounts/shipsurveyetl" \
+  --assignee "<AZURE_CLIENT_ID>" \
+  --query "[?roleDefinitionName=='Storage Blob Data Contributor'].id" -o tsv)
+
+# Import into Terraform (run from iac/)
+terraform import 'azurerm_role_assignment.adls_blob_contributor[0]' "$ROLE_ID"
+```
+
+Then run `terraform plan` — it should show no changes (Terraform now owns the assignment). Future `terraform apply` will keep it in place; in a new environment, Terraform will create it.
+
+**3. From now on**
+
+- Every `terraform apply` will ensure the role assignment exists (create if missing, no-op if already there).
+- New deployments (e.g. new subscription) get the role automatically when you apply.
+
+## Deploying data later
+
+Upload files to the bronze container using Azure CLI, Synapse pipelines, or the GitHub Actions workflow. Example with Azure CLI (after `az login`):
+
+```bash
+az storage blob upload-batch -d ship-bronze-data -s ../data --account-name shipsurveyetl --auth-mode login
+```
+
+Use Terraform outputs `bronze_container_path`, `silver_container_path`, `golden_container_path` (ABFS URLs) in Synapse or Spark.
+
+
+#----- custom comment --- never touch this part -- 
+# project instruction
+
+give an end to end abs ships abs ships survey project. provide the full solution using github actions and azure synapse it should 0 to production
+
+ABS Source (CSV/API)
+        │
+        ▼
+Azure Data Lake Gen2 (Raw Zone)
+        │
+        ▼
+Synapse Spark (Bronze → Silver)
+        │
+        ▼
+Synapse Dedicated SQL Pool (Gold Layer)
+        │
+        ▼
+Power BI / Reporting

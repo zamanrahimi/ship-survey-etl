@@ -28,22 +28,22 @@ variable "storage_account_replication_type" {
   default     = "LRS"
 }
 
-variable "data_lake_container_name" {
-  description = "ADLS Gen2 filesystem (container) name for raw CSV data."
+variable "bronze_container_name" {
+  description = "ADLS Gen2 filesystem name for bronze (raw/landing) data."
   type        = string
-  default     = "ship-survey-csv"
+  default     = "ship-bronze-data"
 }
 
-variable "create_processed_container" {
-  description = "Whether to create an additional container for processed/curated data."
-  type        = bool
-  default     = true
+variable "silver_container_name" {
+  description = "ADLS Gen2 filesystem name for silver (cleaned) data."
+  type        = string
+  default     = "ship-silver-data"
 }
 
-variable "processed_container_name" {
-  description = "ADLS Gen2 filesystem name for processed data (e.g. Parquet)."
+variable "golden_container_name" {
+  description = "ADLS Gen2 filesystem name for golden (curated) data."
   type        = string
-  default     = "ship-survey-processed"
+  default     = "ship-golden-data"
 }
 
 variable "tags" {
@@ -53,7 +53,7 @@ variable "tags" {
 }
 
 variable "github_actions_sp_client_id" {
-  description = "Application (client) ID of the service principal used by GitHub Actions to deploy data. If set, Terraform assigns 'Storage Blob Data Contributor' on the storage account so the workflow can upload to ship-survey-csv."
+  description = "Application (client) ID of the service principal used by GitHub Actions to deploy data. If set, Terraform assigns 'Storage Blob Data Contributor' on the storage account so the workflow can upload to ship-bronze-data."
   type        = string
   default     = ""
 }

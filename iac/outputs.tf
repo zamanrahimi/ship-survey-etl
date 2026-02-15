@@ -20,22 +20,32 @@ output "storage_account_primary_dfs_endpoint" {
   value       = azurerm_storage_account.adls.primary_dfs_endpoint
 }
 
-output "csv_container_name" {
-  description = "Name of the container (filesystem) for CSV data."
-  value       = azurerm_storage_data_lake_gen2_filesystem.csv.name
+output "bronze_container_name" {
+  description = "Name of the bronze (raw) container."
+  value       = azurerm_storage_data_lake_gen2_filesystem.bronze.name
 }
 
-output "csv_container_path" {
-  description = "ABFS path for uploading CSV: abfss://<container>@<account>.dfs.core.windows.net/"
-  value       = "abfss://${azurerm_storage_data_lake_gen2_filesystem.csv.name}@${azurerm_storage_account.adls.name}.dfs.core.windows.net/"
+output "bronze_container_path" {
+  description = "ABFS path for bronze data."
+  value       = "abfss://${azurerm_storage_data_lake_gen2_filesystem.bronze.name}@${azurerm_storage_account.adls.name}.dfs.core.windows.net/"
 }
 
-output "processed_container_name" {
-  description = "Name of the container for processed data (if created)."
-  value       = var.create_processed_container ? azurerm_storage_data_lake_gen2_filesystem.processed[0].name : null
+output "silver_container_name" {
+  description = "Name of the silver (cleaned) container."
+  value       = azurerm_storage_data_lake_gen2_filesystem.silver.name
 }
 
-output "processed_container_path" {
-  description = "ABFS path for processed data (if container created)."
-  value       = var.create_processed_container ? "abfss://${azurerm_storage_data_lake_gen2_filesystem.processed[0].name}@${azurerm_storage_account.adls.name}.dfs.core.windows.net/" : null
+output "silver_container_path" {
+  description = "ABFS path for silver data."
+  value       = "abfss://${azurerm_storage_data_lake_gen2_filesystem.silver.name}@${azurerm_storage_account.adls.name}.dfs.core.windows.net/"
+}
+
+output "golden_container_name" {
+  description = "Name of the golden (curated) container."
+  value       = azurerm_storage_data_lake_gen2_filesystem.golden.name
+}
+
+output "golden_container_path" {
+  description = "ABFS path for golden data."
+  value       = "abfss://${azurerm_storage_data_lake_gen2_filesystem.golden.name}@${azurerm_storage_account.adls.name}.dfs.core.windows.net/"
 }
