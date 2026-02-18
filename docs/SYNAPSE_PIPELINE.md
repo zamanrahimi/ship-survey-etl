@@ -168,4 +168,4 @@ To **write** those 5 rows into silver, you can:
 |----------|--------|
 | Where is the pipeline maintained? | **In GitHub**: `synapse/sql/bronze_to_silver_top5.sql` and `.github/workflows/deploy-data-to-adls.yml`. |
 | When does the SQL job run? | **After** data is moved to bronze, in the same deploy workflow (if `SYNAPSE_WORKSPACE_NAME` is set). Uses service principal (Azure AD); no Synapse secrets in GitHub. |
-| Example operation | SELECT TOP 5 from bronze (logged in the job). Files in silver come from the workflow step **Copy bronze to silver** (all bronze blobs are copied to ship-silver-data). |
+| Example operation | SQL runs (e.g. SELECT TOP 5 from bronze). Only the **result** of the SQL is uploaded to silver as `ship_survey_top5.csv` (not the whole bronze file). |

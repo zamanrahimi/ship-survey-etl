@@ -9,7 +9,7 @@
 #   STEP 4  Upload data/ to bronze container (ship-bronze-data)
 #   STEP 5  List uploaded blobs (verify upload)
 #   STEP 6  Run Synapse serverless SQL (bronze → silver) if SYNAPSE_WORKSPACE_NAME is set
-#   STEP 7  Copy bronze blobs to silver (so silver container has files)
+#   STEP 7  Upload only the SQL result to silver (e.g. TOP 5 as ship_survey_top5.csv)
 #
 # Triggers: push to data/** or synapse/**, or manual "Run workflow".
 
@@ -116,7 +116,7 @@ jobs:
           fi
 
       # -----------------------------------------------------------------------
-      # STEP 6 – Run Synapse serverless SQL (bronze → silver); only if SYNAPSE_WORKSPACE_NAME is set
+      # STEP 6 – Run Synapse serverless SQL (e.g. SELECT TOP 5); result is written to silver (step 7)
       # -----------------------------------------------------------------------
       - name: Run Synapse serverless SQL (bronze → silver)
         if: vars.SYNAPSE_WORKSPACE_NAME != ''
@@ -129,24 +129,27 @@ jobs:
             echo "::error::Set secret SYNAPSE_SQL_ADMIN_PASSWORD (Synapse SQL admin password from Terraform). Azure AD (sqlcmd -G) does not work on this runner."
             exit 1
           fi
-          echo "Running serverless SQL after data in bronze (SQL auth)..."
+          echo "Running serverless SQL (e.g. SELECT TOP 5 from bronze)..."
           SERVER="${SYNAPSE_WORKSPACE}-ondemand.sql.azuresynapse.net"
           sed "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
           sudo apt-get update -qq && sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
           export PATH="$PATH:/opt/mssql-tools18/bin"
-          sqlcmd -S "$SERVER" -d master -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -i /tmp/run_bronze_to_silver.sql
-          echo "Synapse SQL (bronze → silver) completed."
+          # Output result as CSV so we can upload only this result to silver (not the whole bronze file)
+          sqlcmd -S "$SERVER" -d master -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -i /tmp/run_bronze_to_silver.sql -s "," -W -o /tmp/silver_result.csv
+          # Remove sqlcmd footer line if present (e.g. " (5 rows affected)")
+          sed -i '/rows affected)/d' /tmp/silver_result.csv
+          echo "Synapse SQL completed; result in /tmp/silver_result.csv"
 
       # -----------------------------------------------------------------------
-      # STEP 7 – Copy bronze blobs to silver (so silver has files; SQL above only queries, does not write)
+      # STEP 7 – Upload only the SQL result to silver (e.g. TOP 5 rows as ship_survey_top5.csv)
       # -----------------------------------------------------------------------
-      - name: Copy bronze to silver
+      - name: Upload SQL result to silver
+        if: vars.SYNAPSE_WORKSPACE_NAME != ''
         run: |
-          echo "Copying blobs from bronze to silver..."
-          mkdir -p /tmp/bronze_to_silver
-          for blob in $(az storage blob list --account-name "$AZURE_STORAGE_ACCOUNT" --container-name "$ADLS_CONTAINER" --auth-mode login --query "[].name" -o tsv); do
-            echo "Copying $blob to ship-silver-data/"
-            az storage blob download --account-name "$AZURE_STORAGE_ACCOUNT" --container-name "$ADLS_CONTAINER" --name "$blob" --file "/tmp/bronze_to_silver/$blob" --auth-mode login
-            az storage blob upload --account-name "$AZURE_STORAGE_ACCOUNT" --container-name ship-silver-data --name "$blob" --file "/tmp/bronze_to_silver/$blob" --auth-mode login --overwrite
-          done
-          echo "Bronze → silver copy completed."
+          if [ ! -f /tmp/silver_result.csv ]; then
+            echo "::warning::No SQL result file; skipping silver upload (Synapse step may have been skipped)."
+            exit 0
+          fi
+          echo "Uploading SQL result (e.g. TOP 5 records) to ship-silver-data..."
+          az storage blob upload --account-name "$AZURE_STORAGE_ACCOUNT" --container-name ship-silver-data --name "ship_survey_top5.csv" --file /tmp/silver_result.csv --auth-mode login --overwrite
+          echo "Silver upload completed: ship_survey_top5.csv"

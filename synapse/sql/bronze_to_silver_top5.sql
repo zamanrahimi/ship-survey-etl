@@ -1,5 +1,5 @@
--- Bronze → Silver: SELECT TOP 5 from ship_survey.csv (query only; result is logged in the workflow).
--- The workflow also copies all bronze blobs to the silver container so you see files in ship-silver-data.
+-- Bronze → Silver: SELECT TOP 5 from ship_survey.csv. Only this result is written to silver (ship_survey_top5.csv).
+-- Change the query for other analytics; the workflow uploads whatever this script returns to ship-silver-data.
 -- Storage account placeholder is replaced at run time (e.g. by GitHub Actions) with actual value.
 
 SELECT TOP 5
