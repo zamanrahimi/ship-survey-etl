@@ -16,6 +16,12 @@ storage_account_name   = "shipsurveyetl"   # globally unique, 3–24 chars, lowe
 # Get your object ID: az ad signed-in-user show --query id -o tsv
 # storage_data_reader_principal_ids = ["xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"]
 
+# Synapse workspace (serverless SQL) – required if you use the Synapse resources in main.tf
+# Set synapse_sql_admin_password via env: export TF_VAR_synapse_sql_admin_password="YourPassword123!"
+synapse_workspace_name                = "ship-synapse-survey-etl"
+synapse_workspace_storage_container_name = "ship-synapse-workspace"
+synapse_sql_admin_login               = "sqladmin"
+
 tags = {
   project = "ship-survey-etl"
   env     = "dev"

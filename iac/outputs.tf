@@ -49,3 +49,14 @@ output "golden_container_path" {
   description = "ABFS path for golden data."
   value       = "abfss://${azurerm_storage_data_lake_gen2_filesystem.golden.name}@${azurerm_storage_account.adls.name}.dfs.core.windows.net/"
 }
+
+# Synapse workspace (serverless SQL)
+output "synapse_workspace_name" {
+  description = "Name of the Synapse workspace (use in Synapse Studio or connection strings for serverless SQL)."
+  value       = azurerm_synapse_workspace.synapse.name
+}
+
+output "synapse_workspace_id" {
+  description = "Resource ID of the Synapse workspace."
+  value       = azurerm_synapse_workspace.synapse.id
+}

@@ -1,6 +1,16 @@
-# Deploy dataset from data/ to ADLS bronze container (ship-bronze-data)
-# Auth: (1) If AZURE_STORAGE_ACCOUNT_KEY secret is set, uses key auth (works immediately).
-#       (2) Else uses service principal (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET); the SP must have "Storage Blob Data Contributor" on the storage account (e.g. via Terraform github_actions_sp_client_id).
+# Deploy data to ADLS, then run Synapse serverless SQL (training: step order below).
+#
+# PREREQUISITE: Run Terraform first (iac/). Set GitHub variable SYNAPSE_WORKSPACE_NAME after Terraform.
+#
+# PIPELINE STEPS (in order):
+#   STEP 1  Checkout repo (so we have data/ and synapse/sql/)
+#   STEP 2  Validate Azure secrets (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET)
+#   STEP 3  Azure Login (service principal; used for storage and Synapse)
+#   STEP 4  Upload data/ to bronze container (ship-bronze-data)
+#   STEP 5  List uploaded blobs (verify upload)
+#   STEP 6  Run Synapse serverless SQL (bronze → silver) if SYNAPSE_WORKSPACE_NAME is set
+#
+# Triggers: push to data/** or synapse/**, or manual "Run workflow".
 
 name: Deploy data to ADLS
 
@@ -10,18 +20,26 @@ on:
     branches: [main]
     paths:
       - 'data/**'
+      - 'synapse/**'
 
 env:
   AZURE_STORAGE_ACCOUNT: ${{ vars.AZURE_STORAGE_ACCOUNT || 'shipsurveyetl' }}
   ADLS_CONTAINER: ship-bronze-data
+  # Synapse serverless SQL: set var SYNAPSE_WORKSPACE_NAME to run bronze→silver SQL after upload. Uses same service principal (Azure AD auth), no Synapse secrets in GitHub.
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # -----------------------------------------------------------------------
+      # STEP 1 – Checkout repo (so workflow has data/ and synapse/sql/)
+      # -----------------------------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
 
+      # -----------------------------------------------------------------------
+      # STEP 2 – Validate Azure secrets (must be set in repo Settings → Secrets)
+      # -----------------------------------------------------------------------
       - name: Validate Azure secrets
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -34,26 +52,34 @@ jobs:
               exit 1
             fi
           done
-          echo "All four Azure secrets are set."
+          echo "All required Azure secrets are set."
 
+      # -----------------------------------------------------------------------
+      # STEP 3 – Log in to Azure (service principal; used for storage + Synapse)
+      # -----------------------------------------------------------------------
       - name: Azure Login
         uses: azure/login@v2
         with:
           creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
           allow-no-subscriptions: true
 
+      # -----------------------------------------------------------------------
+      # STEP 4 – Upload data/ folder to bronze container (ship-bronze-data)
+      # -----------------------------------------------------------------------
       - name: Upload data to ADLS (ship-bronze-data)
         env:
           AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
         run: |
-          if [ -n "$AZURE_STORAGE_ACCOUNT_KEY" ]; then
+          # Trim key to avoid auth failure from trailing newline when pasted in GitHub secret
+          KEY_TRIM="$([ -n "$AZURE_STORAGE_ACCOUNT_KEY" ] && echo "$AZURE_STORAGE_ACCOUNT_KEY" | tr -d '\n\r' || true)"
+          if [ -n "$KEY_TRIM" ]; then
             echo "Using account key (AZURE_STORAGE_ACCOUNT_KEY)."
             az storage blob upload-batch \
               --account-name "$AZURE_STORAGE_ACCOUNT" \
               --destination "$ADLS_CONTAINER" \
               --source ./data \
               --auth-mode key \
-              --account-key "$AZURE_STORAGE_ACCOUNT_KEY" \
+              --account-key "$KEY_TRIM" \
               --overwrite true
           else
             echo "Using service principal (login)."
@@ -65,16 +91,20 @@ jobs:
               --overwrite true
           fi
 
+      # -----------------------------------------------------------------------
+      # STEP 5 – List blobs in bronze (verify upload)
+      # -----------------------------------------------------------------------
       - name: List uploaded blobs
         env:
           AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
         run: |
-          if [ -n "$AZURE_STORAGE_ACCOUNT_KEY" ]; then
+          KEY_TRIM="$([ -n "$AZURE_STORAGE_ACCOUNT_KEY" ] && echo "$AZURE_STORAGE_ACCOUNT_KEY" | tr -d '\n\r' || true)"
+          if [ -n "$KEY_TRIM" ]; then
             az storage blob list \
               --account-name "$AZURE_STORAGE_ACCOUNT" \
               --container-name "$ADLS_CONTAINER" \
               --auth-mode key \
-              --account-key "$AZURE_STORAGE_ACCOUNT_KEY" \
+              --account-key "$KEY_TRIM" \
               --output table
           else
             az storage blob list \
@@ -83,3 +113,21 @@ jobs:
               --auth-mode login \
               --output table
           fi
+
+      # -----------------------------------------------------------------------
+      # STEP 6 – Run Synapse serverless SQL (bronze → silver); only if SYNAPSE_WORKSPACE_NAME is set
+      # -----------------------------------------------------------------------
+      - name: Run Synapse serverless SQL (bronze → silver)
+        if: vars.SYNAPSE_WORKSPACE_NAME != ''
+        env:
+          SYNAPSE_WORKSPACE: ${{ vars.SYNAPSE_WORKSPACE_NAME }}
+        run: |
+          echo "Running serverless SQL after data in bronze (Azure AD auth)..."
+          SERVER="${SYNAPSE_WORKSPACE}-ondemand.sql.azuresynapse.net"
+          sed "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
+          curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update -qq && sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
+          export PATH="$PATH:/opt/mssql-tools18/bin"
+          sqlcmd -S "$SERVER" -d master -G -I -i /tmp/run_bronze_to_silver.sql
+          echo "Synapse SQL (bronze → silver) completed."
