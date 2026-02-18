@@ -125,11 +125,7 @@ jobs:
           echo "Running serverless SQL after data in bronze (Azure AD auth)..."
           SERVER="${SYNAPSE_WORKSPACE}-ondemand.sql.azuresynapse.net"
           sed "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
-          # Install sqlcmd: use Microsoft config .deb to add repo (installs key without gpg dearmor)
-          UBUNTU_VERSION=$(lsb_release -rs)
-          UBUNTU_CODENAME=$(lsb_release -cs)
-          curl -sL -o /tmp/packages-microsoft-prod.deb "https://packages.microsoft.com/ubuntu/${UBUNTU_VERSION}/prod/pool/main/p/packages-microsoft-prod/packages-microsoft-prod_1.1-ubuntu${UBUNTU_VERSION}_all.deb"
-          sudo dpkg -i /tmp/packages-microsoft-prod.deb
+          # Runner already has Microsoft repo (packages-microsoft-prod); just install sqlcmd
           sudo apt-get update -qq && sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
           export PATH="$PATH:/opt/mssql-tools18/bin"
           sqlcmd -S "$SERVER" -d master -G -I -i /tmp/run_bronze_to_silver.sql
