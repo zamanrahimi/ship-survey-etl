@@ -123,21 +123,15 @@ jobs:
           SYNAPSE_WORKSPACE: ${{ vars.SYNAPSE_WORKSPACE_NAME }}
           SYNAPSE_SQL_USER: ${{ vars.SYNAPSE_SQL_ADMIN_USER || 'sqladmin' }}
           SYNAPSE_SQL_PASSWORD: ${{ secrets.SYNAPSE_SQL_ADMIN_PASSWORD }}
-          # For Azure AD (sqlcmd -G): ODBC may use these on some setups
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
-          echo "Running serverless SQL after data in bronze..."
+          if [ -z "$SYNAPSE_SQL_PASSWORD" ]; then
+            echo "::error::Set secret SYNAPSE_SQL_ADMIN_PASSWORD (Synapse SQL admin password from Terraform). Azure AD (sqlcmd -G) does not work on this runner."
+            exit 1
+          fi
+          echo "Running serverless SQL after data in bronze (SQL auth)..."
           SERVER="${SYNAPSE_WORKSPACE}-ondemand.sql.azuresynapse.net"
           sed "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
           sudo apt-get update -qq && sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
           export PATH="$PATH:/opt/mssql-tools18/bin"
-          if [ -n "$SYNAPSE_SQL_PASSWORD" ]; then
-            echo "Using SQL authentication (SYNAPSE_SQL_ADMIN_PASSWORD)."
-            sqlcmd -S "$SERVER" -d master -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -i /tmp/run_bronze_to_silver.sql
-          else
-            echo "Using Azure AD (service principal)."
-            sqlcmd -S "$SERVER" -d master -G -I -i /tmp/run_bronze_to_silver.sql
-          fi
+          sqlcmd -S "$SERVER" -d master -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -i /tmp/run_bronze_to_silver.sql
           echo "Synapse SQL (bronze → silver) completed."

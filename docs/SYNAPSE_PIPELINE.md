@@ -14,17 +14,16 @@ So: **pipeline logic is in GitHub** (`synapse/sql/*.sql`); **when** it runs is �
 
 ---
 
-## What you need to run the Synapse SQL step (no Synapse secrets)
+## What you need to run the Synapse SQL step
 
-The workflow uses the **same service principal** as for ADLS (Azure AD auth). Terraform grants that SP **Synapse SQL Administrator** on the workspace, so you do **not** need any Synapse-related secrets in GitHub.
+On the GitHub Actions runner, **Azure AD (sqlcmd -G) does not work** with the ODBC sqlcmd, so the workflow uses **SQL authentication**.
 
 | Where | What to set |
 |--------|-------------|
-| **GitHub → Settings → Variables (Actions)** | `SYNAPSE_WORKSPACE_NAME` = your Synapse workspace name (e.g. `ship-synapse-survey-etl`). |
+| **GitHub → Settings → Variables (Actions)** | `SYNAPSE_WORKSPACE_NAME` = your Synapse workspace name (e.g. `ship-synapse-survey-etl`). Optional: `SYNAPSE_SQL_ADMIN_USER` (default `sqladmin`). |
+| **GitHub → Settings → Secrets (Actions)** | **`SYNAPSE_SQL_ADMIN_PASSWORD`** = the Synapse SQL admin password (same value as Terraform `synapse_sql_admin_password`). **Required** for the Synapse SQL step. |
 
-That’s it. No `SYNAPSE_SQL_ADMIN_PASSWORD` or `SYNAPSE_SQL_ADMIN_USER`. If `SYNAPSE_WORKSPACE_NAME` is set, the workflow runs the SQL after upload using the existing Azure login (SP).
-
-**When to set it:** After you’ve run Terraform and created the Synapse workspace. Then in GitHub → Settings → Variables (Actions) add `SYNAPSE_WORKSPACE_NAME` = your workspace name (e.g. `ship-synapse-survey-etl`, or use `terraform output synapse_workspace_name`).
+**When to set them:** After you’ve run Terraform and created the Synapse workspace. Add the variable and the secret; the workflow will fail with a clear error if the password is missing.
 
 ---
 
