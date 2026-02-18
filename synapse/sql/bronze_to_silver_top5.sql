@@ -1,11 +1,11 @@
 -- Bronze → Silver: SELECT TOP 5 from ship_survey.csv. Only this result is written to silver (ship_survey_top5.csv).
--- Uses workspace Managed Identity to read bronze (credential + external data source).
+-- Run in database ShipSurveyDB (workflow creates it once and connects with -d ShipSurveyDB).
+-- CREATE EXTERNAL DATA SOURCE is not allowed in master, so we use a user database.
 -- Storage account placeholder YOUR_STORAGE_ACCOUNT is replaced at run time (e.g. by GitHub Actions).
 
--- Use workspace Managed Identity to access the bronze container (required for serverless SQL when using SQL auth)
--- Credential name must be the container URL; replace YOUR_STORAGE_ACCOUNT at run time.
-IF NOT EXISTS (SELECT 1 FROM sys.credentials WHERE name = 'https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data')
-    CREATE CREDENTIAL [https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data]
+-- Workspace Managed Identity to read bronze (database-scoped in user db)
+IF NOT EXISTS (SELECT 1 FROM sys.database_scoped_credentials WHERE name = 'https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data')
+    CREATE DATABASE SCOPED CREDENTIAL [https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data]
     WITH IDENTITY = 'Managed Identity';
 
 IF NOT EXISTS (SELECT 1 FROM sys.external_data_sources WHERE name = 'BronzeADLS')

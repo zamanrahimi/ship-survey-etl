@@ -134,8 +134,10 @@ jobs:
           sed "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
           sudo apt-get update -qq && sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
           export PATH="$PATH:/opt/mssql-tools18/bin"
-          # Output result as CSV so we can upload only this result to silver (not the whole bronze file)
-          sqlcmd -S "$SERVER" -d master -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -i /tmp/run_bronze_to_silver.sql -s "," -W -o /tmp/silver_result.csv
+          # Create user database once (EXTERNAL DATA SOURCE not allowed in master); ignore "already exists"
+          sqlcmd -S "$SERVER" -d master -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -Q "CREATE DATABASE [ShipSurveyDB]" || true
+          # Run script in ShipSurveyDB (credential, data source, SELECT)
+          sqlcmd -S "$SERVER" -d ShipSurveyDB -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -i /tmp/run_bronze_to_silver.sql -s "," -W -o /tmp/silver_result.csv
           # Remove sqlcmd footer line if present (e.g. " (5 rows affected)")
           sed -i '/rows affected)/d' /tmp/silver_result.csv
           echo "Synapse SQL completed; result in /tmp/silver_result.csv"
