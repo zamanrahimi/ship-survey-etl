@@ -162,10 +162,27 @@ To **write** those 5 rows into silver, you can:
 
 ---
 
+## Troubleshooting: "File cannot be opened" from bronze
+
+The workflow uses **SQL authentication** (sqladmin + password). SQL users cannot use Microsoft Entra to access storage; they need a **database-scoped credential** that uses the **workspace Managed Identity**. The script creates `BronzeCredential` with `IDENTITY = 'Managed Identity'` and attaches it to the bronze external data source so the SQL user can read from bronze via the workspace identity.
+
+If you still get "File 'ship_survey.csv' cannot be opened", check:
+
+1. **IAM on the storage account**  
+   In Azure Portal: **Storage account (shipsurveyetl)** → **Access control (IAM)**. The **Synapse workspace** (its system-assigned managed identity) must have **Storage Blob Data Contributor** (or at least **Storage Blob Data Reader**). Terraform does this in `iac/main.tf` (STEP 5); if the workspace was created or linked later, add the role manually.
+
+2. **File really in bronze**  
+   In the workflow run, check the "List uploaded blobs" step: it should show `ship_survey.csv` in container `ship-bronze-data` and log "OK: ship_survey.csv found in bronze". If the blob name or path is different, update the `BULK` path in the SQL script.
+
+3. **Same storage account**  
+   The script uses `YOUR_STORAGE_ACCOUNT` (replaced by the workflow with `AZURE_STORAGE_ACCOUNT`). Ensure the Synapse workspace has the role on that same storage account.
+
+---
+
 ## Summary
 
 | Question | Answer |
 |----------|--------|
 | Where is the pipeline maintained? | **In GitHub**: `synapse/sql/bronze_to_silver_top5.sql` and `.github/workflows/deploy-data-to-adls.yml`. |
-| When does the SQL job run? | **After** data is moved to bronze, in the same deploy workflow (if `SYNAPSE_WORKSPACE_NAME` is set). Uses service principal (Azure AD); no Synapse secrets in GitHub. |
+| When does the SQL job run? | **After** data is moved to bronze, in the same deploy workflow (if `SYNAPSE_WORKSPACE_NAME` is set). Uses SQL auth + credential (Managed Identity) to read bronze. |
 | Example operation | SQL runs (e.g. SELECT TOP 5 from bronze). Only the **result** of the SQL is uploaded to silver as `ship_survey_top5.csv` (not the whole bronze file). |

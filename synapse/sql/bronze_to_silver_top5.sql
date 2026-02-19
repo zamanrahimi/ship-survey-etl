@@ -1,7 +1,9 @@
 -- Bronze → Silver: SELECT TOP 5 from ship_survey.csv in bronze. Result is written to silver (ship_survey_top5.csv).
 -- Run in database ShipSurveyDB. YOUR_STORAGE_ACCOUNT is replaced at run time (e.g. by GitHub Actions).
--- Use external data source with no CREDENTIAL so workspace Managed Identity is used.
--- LOCATION matches the bronze container URL you see in the portal (blob endpoint).
+--
+-- SQL users (e.g. sqladmin from GitHub Actions) cannot use Entra to access storage. They must use a
+-- database-scoped credential. BronzeCredential with IDENTITY = 'Managed Identity' uses the Synapse
+-- workspace Managed Identity (Terraform grants it Storage Blob Data Contributor on the account).
 
 BEGIN TRY
     DROP EXTERNAL DATA SOURCE BronzeADLS;
@@ -10,8 +12,19 @@ BEGIN CATCH
     SELECT 0;
 END CATCH;
 
+BEGIN TRY
+    DROP DATABASE SCOPED CREDENTIAL BronzeCredential;
+END TRY
+BEGIN CATCH
+    SELECT 0;
+END CATCH;
+
+CREATE DATABASE SCOPED CREDENTIAL BronzeCredential
+WITH IDENTITY = 'Managed Identity';
+
 CREATE EXTERNAL DATA SOURCE BronzeADLS WITH (
-    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data/'
+    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data/',
+    CREDENTIAL = BronzeCredential
 );
 GO
 
