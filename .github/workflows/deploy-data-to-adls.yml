@@ -93,26 +93,25 @@ jobs:
           fi
 
       # -----------------------------------------------------------------------
-      # STEP 5 – List blobs in bronze (verify upload)
+      # STEP 5 – List blobs in bronze (verify upload); Synapse reads from THIS account/container
       # -----------------------------------------------------------------------
       - name: List uploaded blobs
         env:
           AZURE_STORAGE_ACCOUNT_KEY: ${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }}
         run: |
           KEY_TRIM="$([ -n "$AZURE_STORAGE_ACCOUNT_KEY" ] && echo "$AZURE_STORAGE_ACCOUNT_KEY" | tr -d '\n\r' || true)"
+          echo "Bronze: account=$AZURE_STORAGE_ACCOUNT container=$ADLS_CONTAINER (Synapse reads ship_survey.csv from here)"
           if [ -n "$KEY_TRIM" ]; then
-            az storage blob list \
-              --account-name "$AZURE_STORAGE_ACCOUNT" \
-              --container-name "$ADLS_CONTAINER" \
-              --auth-mode key \
-              --account-key "$KEY_TRIM" \
-              --output table
+            az storage blob list --account-name "$AZURE_STORAGE_ACCOUNT" --container-name "$ADLS_CONTAINER" --auth-mode key --account-key "$KEY_TRIM" --output table
+            BLOB_NAMES=$(az storage blob list --account-name "$AZURE_STORAGE_ACCOUNT" --container-name "$ADLS_CONTAINER" --auth-mode key --account-key "$KEY_TRIM" --query "[].name" -o tsv)
           else
-            az storage blob list \
-              --account-name "$AZURE_STORAGE_ACCOUNT" \
-              --container-name "$ADLS_CONTAINER" \
-              --auth-mode login \
-              --output table
+            az storage blob list --account-name "$AZURE_STORAGE_ACCOUNT" --container-name "$ADLS_CONTAINER" --auth-mode login --output table
+            BLOB_NAMES=$(az storage blob list --account-name "$AZURE_STORAGE_ACCOUNT" --container-name "$ADLS_CONTAINER" --auth-mode login --query "[].name" -o tsv)
+          fi
+          if echo "$BLOB_NAMES" | grep -qx 'ship_survey.csv'; then
+            echo "OK: ship_survey.csv found in bronze"
+          else
+            echo "::warning::ship_survey.csv not in bronze. Blob names: $BLOB_NAMES"
           fi
 
       # -----------------------------------------------------------------------
@@ -129,7 +128,7 @@ jobs:
             echo "::error::Set secret SYNAPSE_SQL_ADMIN_PASSWORD (Synapse SQL admin password from Terraform). Azure AD (sqlcmd -G) does not work on this runner."
             exit 1
           fi
-          echo "Running serverless SQL (e.g. SELECT TOP 5 from bronze)..."
+          echo "Running serverless SQL: reading ship_survey.csv from bronze (account=$AZURE_STORAGE_ACCOUNT, container=ship-bronze-data)"
           SERVER="${SYNAPSE_WORKSPACE}-ondemand.sql.azuresynapse.net"
           sed "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
           sudo apt-get update -qq && sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
