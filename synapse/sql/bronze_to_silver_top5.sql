@@ -12,8 +12,9 @@ BEGIN CATCH
 END CATCH;
 
 -- No CREDENTIAL = serverless uses workspace Managed Identity (Terraform already granted it Storage Blob Data Contributor)
+-- LOCATION must end with / so BULK relative path (e.g. ship_survey.csv) resolves correctly
 CREATE EXTERNAL DATA SOURCE BronzeADLS WITH (
-    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data'
+    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data/'
 );
 GO
 
