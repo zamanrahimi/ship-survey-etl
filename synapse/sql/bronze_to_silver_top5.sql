@@ -53,4 +53,15 @@ FROM OPENROWSET(
     FORMAT = 'CSV',
     PARSER_VERSION = '2.0',
     HEADER_ROW = TRUE
+) WITH (
+    survey_id           VARCHAR(50)  COLLATE Latin1_General_100_CI_AS_SC_UTF8,
+    response_date       VARCHAR(20),
+    vessel_name         VARCHAR(200) COLLATE Latin1_General_100_CI_AS_SC_UTF8,
+    vessel_type         VARCHAR(50)  COLLATE Latin1_General_100_CI_AS_SC_UTF8,
+    flag_country        VARCHAR(100) COLLATE Latin1_General_100_CI_AS_SC_UTF8,
+    crew_size           INT,
+    safety_rating       INT,
+    satisfaction_rating INT,
+    maintenance_rating  INT,
+    port_of_survey      VARCHAR(100) COLLATE Latin1_General_100_CI_AS_SC_UTF8
 ) AS bronze;
