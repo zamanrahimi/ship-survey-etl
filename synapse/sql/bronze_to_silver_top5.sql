@@ -1,31 +1,21 @@
 -- Bronze → Silver: SELECT TOP 5 from ship_survey.csv. Only this result is written to silver (ship_survey_top5.csv).
 -- Run in database ShipSurveyDB (workflow creates it once and connects with -d ShipSurveyDB).
--- CREATE EXTERNAL DATA SOURCE is not allowed in master, so we use a user database.
+-- BronzeADLS = external data source pointing at the bronze container; workspace Managed Identity is used automatically (no credential).
 -- Storage account placeholder YOUR_STORAGE_ACCOUNT is replaced at run time (e.g. by GitHub Actions).
 
--- Workspace Managed Identity to read bronze (database-scoped in user db)
--- Drop if exist (ignore errors on first run); then CREATE so BronzeADLS always exists for the SELECT
+-- Drop if exists (ignore on first run); then CREATE so BronzeADLS exists for the SELECT
 BEGIN TRY
     DROP EXTERNAL DATA SOURCE BronzeADLS;
 END TRY
 BEGIN CATCH
-    SELECT 0; -- ignore drop error on first run (may add one row to output; workflow strips footer)
+    SELECT 0;
 END CATCH;
 
-BEGIN TRY
-    DROP DATABASE SCOPED CREDENTIAL [https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data];
-END TRY
-BEGIN CATCH
-    SELECT 0; -- ignore drop error on first run
-END CATCH;
-
-CREATE DATABASE SCOPED CREDENTIAL [https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data]
-WITH IDENTITY = 'Managed Identity';
-
+-- No CREDENTIAL = serverless uses workspace Managed Identity (Terraform already granted it Storage Blob Data Contributor)
 CREATE EXTERNAL DATA SOURCE BronzeADLS WITH (
-    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data',
-    CREDENTIAL = [https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data]
+    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data'
 );
+GO
 
 SELECT TOP 5
     survey_id,
