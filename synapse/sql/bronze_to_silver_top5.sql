@@ -1,6 +1,19 @@
 -- Bronze → Silver: SELECT TOP 5 from ship_survey.csv in bronze. Result is written to silver (ship_survey_top5.csv).
 -- Run in database ShipSurveyDB. YOUR_STORAGE_ACCOUNT is replaced at run time (e.g. by GitHub Actions).
--- Full path in BULK so there is no ambiguity: we read from bronze container in that storage account.
+-- Use external data source with no CREDENTIAL so workspace Managed Identity is used.
+-- LOCATION matches the bronze container URL you see in the portal (blob endpoint).
+
+BEGIN TRY
+    DROP EXTERNAL DATA SOURCE BronzeADLS;
+END TRY
+BEGIN CATCH
+    SELECT 0;
+END CATCH;
+
+CREATE EXTERNAL DATA SOURCE BronzeADLS WITH (
+    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data/'
+);
+GO
 
 SELECT TOP 5
     survey_id,
@@ -14,7 +27,8 @@ SELECT TOP 5
     maintenance_rating,
     port_of_survey
 FROM OPENROWSET(
-    BULK 'abfss://ship-bronze-data@YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship_survey.csv',
+    BULK 'ship_survey.csv',
+    DATA_SOURCE = 'BronzeADLS',
     FORMAT = 'CSV',
     PARSER_VERSION = '2.0',
     HEADER_ROW = TRUE
