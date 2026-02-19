@@ -11,10 +11,10 @@ BEGIN CATCH
     SELECT 0;
 END CATCH;
 
--- No CREDENTIAL = serverless uses workspace Managed Identity (Terraform already granted it Storage Blob Data Contributor)
--- LOCATION must end with / so BULK relative path (e.g. ship_survey.csv) resolves correctly
+-- Use abfss (DFS) endpoint; serverless expects this for ADLS Gen2. Workspace Managed Identity is used automatically.
+-- LOCATION = container@account (trailing / so BULK path is relative).
 CREATE EXTERNAL DATA SOURCE BronzeADLS WITH (
-    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data/'
+    LOCATION = 'abfss://ship-bronze-data@YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/'
 );
 GO
 
