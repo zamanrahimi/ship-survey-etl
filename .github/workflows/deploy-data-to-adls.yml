@@ -138,8 +138,9 @@ jobs:
           sqlcmd -S "$SERVER" -d master -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -Q "CREATE DATABASE [ShipSurveyDB]" || true
           # Run script in ShipSurveyDB (credential, data source, SELECT)
           sqlcmd -S "$SERVER" -d ShipSurveyDB -U "$SYNAPSE_SQL_USER" -P "$SYNAPSE_SQL_PASSWORD" -I -i /tmp/run_bronze_to_silver.sql -s "," -W -o /tmp/silver_result.csv
-          # Remove sqlcmd footer line if present (e.g. " (5 rows affected)")
+          # Remove sqlcmd footer and any stray "0" lines from TRY/CATCH in the script
           sed -i '/rows affected)/d' /tmp/silver_result.csv
+          sed -i '/^0$/d' /tmp/silver_result.csv
           echo "Synapse SQL completed; result in /tmp/silver_result.csv"
 
       # -----------------------------------------------------------------------

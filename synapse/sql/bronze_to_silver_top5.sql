@@ -4,15 +4,28 @@
 -- Storage account placeholder YOUR_STORAGE_ACCOUNT is replaced at run time (e.g. by GitHub Actions).
 
 -- Workspace Managed Identity to read bronze (database-scoped in user db)
-IF NOT EXISTS (SELECT 1 FROM sys.database_scoped_credentials WHERE name = 'https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data')
-    CREATE DATABASE SCOPED CREDENTIAL [https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data]
-    WITH IDENTITY = 'Managed Identity';
+-- Drop if exist (ignore errors on first run); then CREATE so BronzeADLS always exists for the SELECT
+BEGIN TRY
+    DROP EXTERNAL DATA SOURCE BronzeADLS;
+END TRY
+BEGIN CATCH
+    SELECT 0; -- ignore drop error on first run (may add one row to output; workflow strips footer)
+END CATCH;
 
-IF NOT EXISTS (SELECT 1 FROM sys.external_data_sources WHERE name = 'BronzeADLS')
-    CREATE EXTERNAL DATA SOURCE BronzeADLS WITH (
-        LOCATION = 'https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data',
-        CREDENTIAL = [https://YOUR_STORAGE_ACCOUNT.dfs.core.windows.net/ship-bronze-data]
-    );
+BEGIN TRY
+    DROP DATABASE SCOPED CREDENTIAL [https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data];
+END TRY
+BEGIN CATCH
+    SELECT 0; -- ignore drop error on first run
+END CATCH;
+
+CREATE DATABASE SCOPED CREDENTIAL [https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data]
+WITH IDENTITY = 'Managed Identity';
+
+CREATE EXTERNAL DATA SOURCE BronzeADLS WITH (
+    LOCATION = 'https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data',
+    CREDENTIAL = [https://YOUR_STORAGE_ACCOUNT.blob.core.windows.net/ship-bronze-data]
+);
 
 SELECT TOP 5
     survey_id,
