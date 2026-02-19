@@ -21,7 +21,7 @@ On the GitHub Actions runner, **Azure AD (sqlcmd -G) does not work** with the OD
 | Where | What to set |
 |--------|-------------|
 | **GitHub → Settings → Variables (Actions)** | `SYNAPSE_WORKSPACE_NAME` = your Synapse workspace name (e.g. `ship-synapse-survey-etl`). Optional: `SYNAPSE_SQL_ADMIN_USER` (default `sqladmin`). |
-| **GitHub → Settings → Secrets (Actions)** | **`SYNAPSE_SQL_ADMIN_PASSWORD`** = the Synapse SQL admin password (same value as Terraform `synapse_sql_admin_password`). **Required** for the Synapse SQL step. |
+| **GitHub → Settings → Secrets (Actions)** | **`SYNAPSE_SQL_ADMIN_PASSWORD`** = the Synapse SQL admin password (same value as Terraform `synapse_sql_admin_password`). **Required** for the Synapse SQL step. Optional: **`SYNAPSE_DB_MASTER_KEY_PASSWORD`** = password for the database master key in ShipSurveyDB (if not set, the workflow generates one each run; the key is created once and then reused). |
 
 **When to set them:** After you’ve run Terraform and created the Synapse workspace. Add the variable and the secret; the workflow will fail with a clear error if the password is missing.
 
@@ -162,7 +162,13 @@ To **write** those 5 rows into silver, you can:
 
 ---
 
-## Troubleshooting: "File cannot be opened" from bronze
+## Troubleshooting
+
+### "Please create a master key in the database"
+
+Database-scoped credentials require a **database master key** in ShipSurveyDB. The script creates it on first run (with a password replaced by the workflow: from secret `SYNAPSE_DB_MASTER_KEY_PASSWORD` or a generated value). If you see this error, ensure you are running the full script in ShipSurveyDB and that the placeholder `YOUR_MASTER_KEY_PASSWORD` is replaced (the workflow does this automatically).
+
+### "File cannot be opened" from bronze
 
 The workflow uses **SQL authentication** (sqladmin + password). SQL users cannot use Microsoft Entra to access storage; they need a **database-scoped credential** that uses the **workspace Managed Identity**. The script creates `BronzeCredential` with `IDENTITY = 'Managed Identity'` and attaches it to the bronze external data source so the SQL user can read from bronze via the workspace identity.
 

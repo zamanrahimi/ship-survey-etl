@@ -1,9 +1,17 @@
 -- Bronze → Silver: SELECT TOP 5 from ship_survey.csv in bronze. Result is written to silver (ship_survey_top5.csv).
--- Run in database ShipSurveyDB. YOUR_STORAGE_ACCOUNT is replaced at run time (e.g. by GitHub Actions).
+-- Run in database ShipSurveyDB. Placeholders replaced at run time: YOUR_STORAGE_ACCOUNT, YOUR_MASTER_KEY_PASSWORD.
 --
--- SQL users (e.g. sqladmin from GitHub Actions) cannot use Entra to access storage. They must use a
--- database-scoped credential. BronzeCredential with IDENTITY = 'Managed Identity' uses the Synapse
--- workspace Managed Identity (Terraform grants it Storage Blob Data Contributor on the account).
+-- Database-scoped credentials require a database master key. SQL users need the credential (Managed Identity)
+-- to access storage; Terraform grants the workspace identity Storage Blob Data Contributor.
+
+-- Ensure database master key exists (required before CREATE DATABASE SCOPED CREDENTIAL)
+BEGIN TRY
+    CREATE MASTER KEY ENCRYPTION BY PASSWORD = 'YOUR_MASTER_KEY_PASSWORD';
+END TRY
+BEGIN CATCH
+    -- Ignore if key already exists (e.g. from a previous run)
+    SELECT 0;
+END CATCH;
 
 BEGIN TRY
     DROP EXTERNAL DATA SOURCE BronzeADLS;

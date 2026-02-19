@@ -130,7 +130,10 @@ jobs:
           fi
           echo "Running serverless SQL: reading ship_survey.csv from bronze (account=$AZURE_STORAGE_ACCOUNT, container=ship-bronze-data)"
           SERVER="${SYNAPSE_WORKSPACE}-ondemand.sql.azuresynapse.net"
-          sed "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
+          # Master key password: use secret if set, else generate (key is created once; subsequent runs ignore duplicate)
+          MASTER_KEY_PW="${{ secrets.SYNAPSE_DB_MASTER_KEY_PASSWORD }}"
+          if [ -z "$MASTER_KEY_PW" ]; then MASTER_KEY_PW=$(openssl rand -base64 24); fi
+          sed -e "s/YOUR_STORAGE_ACCOUNT/${AZURE_STORAGE_ACCOUNT}/g" -e "s|YOUR_MASTER_KEY_PASSWORD|${MASTER_KEY_PW}|g" synapse/sql/bronze_to_silver_top5.sql > /tmp/run_bronze_to_silver.sql
           sudo apt-get update -qq && sudo ACCEPT_EULA=Y apt-get install -y -qq mssql-tools18 unixodbc-dev
           export PATH="$PATH:/opt/mssql-tools18/bin"
           # Create user database once (EXTERNAL DATA SOURCE not allowed in master); ignore "already exists"
